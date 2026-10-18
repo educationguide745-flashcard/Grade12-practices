@@ -1,0 +1,244 @@
+
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grade 12 Flashcards</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f1f5ff;color:#202b48;margin:0}
+header{background:#2848ad;color:white;padding:25px 16px;text-align:center}
+main{max-width:700px;margin:20px auto;padding:12px}
+.box{background:white;padding:18px;border-radius:16px;margin-bottom:16px;box-shadow:0 3px 12px #0001}
+button,select,input,textarea{font-size:16px;padding:12px;border-radius:9px;border:1px solid #ccd5ed}
+button{background:#2848ad;color:white;cursor:pointer;border:0;margin:4px}
+select,input,textarea{width:100%;box-sizing:border-box;margin:6px 0 12px}
+.card{background:#edf1ff;min-height:180px;border-radius:14px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:18px;cursor:pointer}
+#answer{display:none;color:#147b50;font-size:20px;white-space:pre-wrap}
+.tabs{display:flex;flex-wrap:wrap;gap:5px}
+.tabs button{flex:1}
+.small{color:#68738b;font-size:14px}
+.hidden{display:none}
+.option{display:block;width:100%;text-align:left;background:#edf1ff;color:#202b48;margin:7px 0}
+</style>
+</head>
+<body>
+<header>
+<h1>📚 Grade 12 Flashcards</h1>
+<p>Learn • Remember • Practice</p>
+</header>
+<main>
+<div class="box">
+<div class="tabs">
+<button onclick="showTab('cards')">Flashcards</button>
+<button onclick="showTab('quiz')">Quiz</button>
+<button onclick="showTab('add')">Add Cards</button>
+</div>
+<label>Choose Subject</label>
+<select id="subject" onchange="changeSubject()"></select>
+</div>
+
+<section id="cards" class="box">
+<p id="count"></p>
+<div class="card" onclick="reveal()">
+<p id="question">Question</p>
+<p id="answer">Answer</p>
+<p class="small">Tap card to reveal answer</p>
+</div>
+<button onclick="move(-1)">← Previous</button>
+<button onclick="reveal()">Show Answer</button>
+<button onclick="move(1)">Next →</button>
+</section>
+
+<section id="quiz" class="box hidden">
+<h2>Quiz</h2>
+<p id="quizQ">Press Start Quiz to begin.</p>
+<div id="options"></div>
+<p id="result"></p>
+<button onclick="startQuiz()">Start / Restart Quiz</button>
+<button id="nextQ" class="hidden" onclick="nextQuiz()">Next Question</button>
+</section>
+
+<section id="add" class="box hidden">
+<h2>Add Your Flashcard</h2>
+<label>Subject</label>
+<select id="newSubject">
+<option>English</option>
+<option>Mathematics</option>
+<option>Physics</option>
+<option>Chemistry</option>
+<option>Biology</option>
+<option>Myanmar</option>
+</select>
+<label>Question</label>
+<textarea id="newQ" placeholder="Type your question"></textarea>
+<label>Answer</label>
+<textarea id="newA" placeholder="Type your answer"></textarea>
+<button onclick="addCard()">Save Flashcard</button>
+<p id="message"></p>
+</section>
+<p class="small">Your personal Grade 12 study website.</p>
+</main>
+
+<script>
+const initialCards=[
+{subject:"English",q:"What is a synonym?",a:"A word with the same or nearly the same meaning."},
+{subject:"English",q:"What does although mean?",a:"In spite of the fact that; even though."},
+{subject:"Mathematics",q:"What is the derivative of x²?",a:"2x"},
+{subject:"Mathematics",q:"What is the area of a circle?",a:"A = πr²"},
+{subject:"Physics",q:"What is the SI unit of force?",a:"Newton (N)"},
+{subject:"Chemistry",q:"What is the formula of baking soda?",a:"NaHCO₃"},
+{subject:"Biology",q:"Which organelle produces most ATP?",a:"Mitochondria"}
+];
+
+let cards;
+try{
+cards=JSON.parse(localStorage.getItem("g12cards"))||initialCards.slice();
+}catch(e){cards=initialCards.slice()}
+
+let index=0,quizList=[],qi=0,score=0,answered=false;
+
+function save(){
+try{localStorage.setItem("g12cards",JSON.stringify(cards))}
+catch(e){alert("Unable to save in this browser.")}
+}
+
+function fillSubjects(){
+let s=document.getElementById("subject");
+let old=s.value;
+s.innerHTML="";
+["All Subjects",...new Set(cards.map(c=>c.subject))].forEach(x=>{
+let o=document.createElement("option");
+o.value=x;o.textContent=x;s.appendChild(o);
+});
+if([...s.options].some(o=>o.value===old))s.value=old;
+}
+
+function filtered(){
+let s=document.getElementById("subject").value;
+return cards.filter(c=>s==="All Subjects"||c.subject===s);
+}
+
+function render(){
+let list=filtered();
+if(index>=list.length)index=0;
+document.getElementById("count").textContent=
+list.length?`Card ${index+1} of ${list.length}`:"No cards yet";
+document.getElementById("question").textContent=list[index]?.q||"Add a card to begin";
+document.getElementById("answer").textContent=list[index]?.a||"";
+document.getElementById("answer").style.display="none";
+}
+
+function reveal(){
+let a=document.getElementById("answer");
+a.style.display=a.style.display==="block"?"none":"block";
+}
+
+function move(n){
+let list=filtered();
+if(!list.length)return;
+index=(index+n+list.length)%list.length;
+render();
+}
+
+function changeSubject(){index=0;render();resetQuiz();}
+
+function showTab(id){
+["cards","quiz","add"].forEach(x=>
+document.getElementById(x).classList.toggle("hidden",x!==id));
+}
+
+function addCard(){
+let subject=document.getElementById("newSubject").value;
+let q=document.getElementById("newQ").value.trim();
+let a=document.getElementById("newA").value.trim();
+if(!q||!a){
+document.getElementById("message").textContent=
+"Please enter both a question and an answer.";
+return;
+}
+cards.push({subject,q,a});
+save();fillSubjects();
+document.getElementById("subject").value=subject;
+index=filtered().length-1;
+render();
+document.getElementById("newQ").value="";
+document.getElementById("newA").value="";
+document.getElementById("message").textContent="Flashcard saved!";
+}
+
+function resetQuiz(){
+quizList=[];qi=0;score=0;answered=false;
+document.getElementById("quizQ").textContent="Press Start Quiz to begin.";
+document.getElementById("options").innerHTML="";
+document.getElementById("result").textContent="";
+document.getElementById("nextQ").classList.add("hidden");
+}
+
+function startQuiz(){
+let list=filtered();
+if(list.length<2){
+document.getElementById("quizQ").textContent=
+"Add at least two cards to this subject to start a quiz.";
+return;
+}
+quizList=list.slice().sort(()=>Math.random()-.5);
+qi=0;score=0;showQuestion();
+}
+
+function showQuestion(){
+answered=false;
+let c=quizList[qi];
+document.getElementById("quizQ").textContent=
+`Question ${qi+1}/${quizList.length}: ${c.q}`;
+document.getElementById("result").textContent="";
+document.getElementById("options").innerHTML="";
+document.getElementById("nextQ").classList.add("hidden");
+
+let wrong=cards.filter(x=>x.a!==c.a)
+.sort(()=>Math.random()-.5).slice(0,3).map(x=>x.a);
+let choices=[...new Set([c.a,...wrong])].sort(()=>Math.random()-.5);
+
+choices.forEach(answer=>{
+let b=document.createElement("button");
+b.className="option";
+b.textContent=answer;
+b.onclick=()=>checkAnswer(answer,c.a,b);
+document.getElementById("options").appendChild(b);
+});
+}
+
+function checkAnswer(selected,correct,button){
+if(answered)return;
+answered=true;
+if(selected===correct){
+score++;
+document.getElementById("result").textContent="Correct! Score: "+score;
+}else{
+document.getElementById("result").textContent=
+"Correct answer: "+correct+" | Score: "+score;
+}
+document.querySelectorAll("#options button").forEach(b=>b.disabled=true);
+document.getElementById("nextQ").classList.remove("hidden");
+document.getElementById("nextQ").textContent=
+qi===quizList.length-1?"See Final Score":"Next Question";
+}
+
+function nextQuiz(){
+if(!answered)return;
+if(qi<quizList.length-1){qi++;showQuestion();}
+else{
+document.getElementById("quizQ").textContent=
+`Quiz complete! Your score: ${score}/${quizList.length}`;
+document.getElementById("options").innerHTML="";
+document.getElementById("result").textContent="Keep practising!";
+document.getElementById("nextQ").classList.add("hidden");
+}
+}
+
+fillSubjects();
+render();
+</script>
+</body>
+  </html>
+  
