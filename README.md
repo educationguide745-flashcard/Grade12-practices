@@ -1,5 +1,5 @@
 # Grade12 practices 
-Flash cards website 
+Flash cards website
 
 <!DOCTYPE html>
 <html lang="my">
